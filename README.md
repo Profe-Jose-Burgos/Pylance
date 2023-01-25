@@ -2,4 +2,4 @@
 integrantes:
 Alan Villarreal, José Luis, Miguel Lee, Rafael Cedeño
 
-ChatBot de uso general.
+ChatBot para consultoría medica y reconocimiento de imágenes.
