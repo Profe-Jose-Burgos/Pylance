@@ -1,26 +1,28 @@
 import os
 import pyautogui as gui
 import pyperclip as pc
-import openai
 from datetime import datetime
 from tkinter import Button
 from pynput.mouse import Controller
+from unidecode import unidecode
 from time import sleep
 from tensorflow import keras
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.preprocessing.image import img_to_array
 from tensorflow.keras.applications.inception_v3 import preprocess_input
 from keras.applications.inception_v3 import InceptionV3, decode_predictions
+from google.cloud.dialogflow_v2 import types
 from google.cloud import translate_v2 as translate
+from google.cloud import dialogflow as df
 
 mouse = Controller()
-openai.api_key = "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"
-credential_path = r"C:\Users\alanv\Desktop\Hackaton\rare-array-375704-712d7a5f186a.json"
+session_client = df.SessionsClient()
+session = session_client.session_path("rare-array-375704", "me")
+credential_path = r"C:\Users\alanv\Desktop\Hackaton\rare-array-375704-80556aca21e2.json"
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credential_path
 translate_client = translate.Client()
 iv3 = InceptionV3()
 Imagentemporal = r"C:\Users\alanv\Desktop\Hackaton\1.jpg"
-
 
 class whatsapp:
 
@@ -77,22 +79,23 @@ class whatsapp:
                 gui.click(interval=self.click_speed)
                 gui.typewrite("1")
                 gui.press('enter')
+                gui.typewrite('y')
                 gui.moveTo(position_type[0:2], duration=self.speed)
                 gui.click()
                 tipo = "imagen"
+                self.log("Mensaje tipo: imagen")
                 return tipo
             except Exception as ex:
                 self.log(ex)
             gui.doubleClick()
         elif position_x is not None:
             gui.moveTo(position_x[0:2], duration=self.speed)
-            gui.doubleClick(interval=self.click_speed)
             tipo = None
+            self.log("Mensaje tipo: None")
             return tipo
         else:
             gui.click()
             gui.rightClick(interval=self.click_speed)
-            sleep(0.5)
             position_copy = gui.locateOnScreen('copy.png', confidence=.8)
             if position_copy is not None:
                 self.log("Mensaje recibido.")
@@ -101,8 +104,9 @@ class whatsapp:
                 gui.moveTo(position_type[0:2], duration=self.speed)
                 gui.doubleClick(interval=self.click_speed)
                 tipo = "text"
+                self.log("Mensaje tipo: text")
             return tipo
-
+    
     #Enviar el mensaje
     def send(self):
         try:
@@ -125,7 +129,6 @@ while True:
     Bot.boton_verde()
     Bot.paperclip()
     result = Bot.clicks()
-    print(result)
     if result == None:
         sleep(2)
     elif result == "imagen":
@@ -150,16 +153,24 @@ while True:
     else:
         #Preparar la respuesta
         text = pc.paste()
-        response = openai.Completion.create(
-            engine="davinci:ft-personal-2023-01-25-00-08-53",
-            prompt=f"{text}",
-            max_tokens=50,
-            temperature=0.7
-        )
-        #Imprimir y enviar la respuesta
-        res = response["choices"][0]["text"]
-        gui.typewrite(res)
-        sleep(1)
-        Bot.send()
-        sleep(0.5)
-        Bot.start()
+        mensaje = translate_client.translate(str(text), target_language='en')
+        translated = mensaje['translatedText']
+        textinput = types.TextInput(text=translated, language_code='en')
+        query = types.QueryInput(text=textinput)
+        print(query)
+        try:
+            enviar = session_client.detect_intent(session=session, query_input=query)
+            respuesta = enviar.query_result.fulfillment_text
+            #Imprimir y enviar mensaje
+            a = respuesta
+            b = translate_client.translate(str(a), target_language='es')
+            c = b['translatedText']
+            res = unidecode(c)
+            gui.typewrite(res)
+            sleep(1)
+            Bot.send()
+            sleep(0.5)
+            Bot.start()
+        except Exception as ex:
+            print("Ocurrió un error:", ex)
+            Bot.start()
